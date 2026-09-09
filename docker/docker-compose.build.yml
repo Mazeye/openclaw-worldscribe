@@ -1,0 +1,8 @@
+# Dev override: build the Worldscribe image from a local checkout (config backend.buildFrom).
+services:
+  worldscribe:
+    build:
+      context: ${WORLDSCRIBE_SRC}
+      dockerfile: deploy/docker/Dockerfile
+      args:
+        WITH_BGE: "1"

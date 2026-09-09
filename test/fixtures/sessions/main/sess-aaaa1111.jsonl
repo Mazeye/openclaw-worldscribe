@@ -1,0 +1,6 @@
+{"type":"session","id":"sess-aaaa1111","timestamp":"2026-09-08T00:10:00.000Z"}
+{"type":"message","timestamp":"2026-09-08T00:12:00.000Z","message":{"role":"user","content":[{"type":"text","text":"我们把数据库定为 PostgreSQL 吧。"}]}}
+{"type":"message","timestamp":"2026-09-08T00:12:30.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"secret reasoning"},{"type":"text","text":"好，PostgreSQL 定了。\n我记一下。"},{"type":"tool_use","name":"memory_store","input":{}}]}}
+{"type":"message","timestamp":"2026-09-08T00:12:40.000Z","message":{"role":"toolResult","content":[{"type":"tool_result","content":"Stored: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}]}}
+{"type":"message","timestamp":"2026-09-08T14:59:59.000Z","message":{"role":"user","content":[{"type":"text","text":"小王今天很沮丧，Neo4j 方案被否了。"}]}}
+{"type":"message","timestamp":"2026-09-08T15:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"这条已经是第二天了（东京时间）。"}]}}

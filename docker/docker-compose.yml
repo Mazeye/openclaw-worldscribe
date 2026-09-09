@@ -1,0 +1,45 @@
+# Bundled Worldscribe stack for the OpenClaw plugin. Rendered .env comes from the plugin config
+# (~/.openclaw/worldscribe/.env); `openclaw worldscribe up|down|logs` wraps `docker compose -p openclaw-worldscribe`.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: worldscribe
+      POSTGRES_PASSWORD: worldscribe
+      POSTGRES_DB: worldscribe
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worldscribe -d worldscribe"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  worldscribe:
+    image: ${WS_IMAGE}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WS_DATABASE_URL: postgresql://worldscribe:worldscribe@db:5432/worldscribe
+      WS_LLM_BASE_URL: ${WS_LLM_BASE_URL}
+      WS_LLM_API_KEY: ${WS_LLM_API_KEY}
+      WS_LLM_MODEL: ${WS_LLM_MODEL}
+      WS_LLM_CONCURRENCY: ${WS_LLM_CONCURRENCY}
+      WS_EMBEDDER: ${WS_EMBEDDER}
+      WS_EMBED_URL: ${WS_EMBED_URL}
+      WS_EMBED_SECRET: ${WS_EMBED_SECRET}
+      WS_EMBED_WARMUP: ${WS_EMBED_WARMUP}
+      WS_EMBED_DEVICE: cpu
+      WS_WORLD: ${WS_WORLD}
+      WS_JOB_WORKERS: ${WS_JOB_WORKERS}
+    ports:
+      - "127.0.0.1:${WS_PORT}:8080"
+    volumes:
+      - hf_cache:/hf-cache
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  hf_cache:

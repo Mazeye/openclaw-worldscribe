@@ -1,0 +1,423 @@
+{
+  "id": "worldscribe",
+  "name": "Worldscribe",
+  "description": "Structured long-document memory (timeline, entities, states, storylines, mental states) over books, documents and daily conversations.",
+  "version": "0.1.0",
+  "skills": [
+    "skills"
+  ],
+  "cliCommands": [
+    {
+      "name": "worldscribe",
+      "description": "Worldscribe structured memory: backend, worlds, ingestion, diary",
+      "hasSubcommands": true
+    }
+  ],
+  "activation": {
+    "onStartup": true,
+    "onCommands": [
+      "worldscribe"
+    ]
+  },
+  "contracts": {
+    "tools": [
+      "worldscribe_describe_world",
+      "worldscribe_recall_entity",
+      "worldscribe_recall_time",
+      "worldscribe_recall_narrative",
+      "worldscribe_recall_state",
+      "worldscribe_recall_mental_state",
+      "worldscribe_semantic_search",
+      "worldscribe_get_sources",
+      "worldscribe_list_worlds",
+      "worldscribe_ingest_status",
+      "worldscribe_ingest_document",
+      "worldscribe_record_note",
+      "worldscribe_forget"
+    ]
+  },
+  "toolMetadata": {
+    "worldscribe_ingest_document": {
+      "optional": true,
+      "sideEffecting": true
+    },
+    "worldscribe_record_note": {
+      "optional": true,
+      "sideEffecting": true
+    },
+    "worldscribe_forget": {
+      "optional": true,
+      "sideEffecting": true
+    }
+  },
+  "uiHints": {
+    "llm.apiKey": {
+      "label": "LLM API key",
+      "sensitive": true,
+      "placeholder": "sk-...",
+      "help": "OpenAI-compatible key used by Worldscribe to compile text (DeepSeek by default)"
+    },
+    "llm.apiKeyEnv": {
+      "label": "LLM API key env var",
+      "advanced": true
+    },
+    "embedder.secret": {
+      "label": "Embedder secret",
+      "sensitive": true,
+      "advanced": true
+    },
+    "backend.mode": {
+      "label": "Backend mode",
+      "help": "compose = start pgvector + Worldscribe with docker compose; external = connect to backend.url"
+    },
+    "diary.time": {
+      "label": "Diary compile time",
+      "help": "Local time after which yesterday's conversations are compiled (when idle)"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "backend": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "compose"
+              },
+              {
+                "type": "string",
+                "const": "external"
+              }
+            ],
+            "default": "compose"
+          },
+          "url": {
+            "type": "string",
+            "description": "external mode: base URL of a running `worldscribe serve-http --world-routing`"
+          },
+          "port": {
+            "type": "integer",
+            "default": 8765,
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "image": {
+            "type": "string",
+            "default": "ghcr.io/mazeye/worldscribe"
+          },
+          "imageTag": {
+            "type": "string",
+            "default": "latest"
+          },
+          "pullPolicy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "missing"
+              },
+              {
+                "type": "string",
+                "const": "always"
+              },
+              {
+                "type": "string",
+                "const": "never"
+              }
+            ],
+            "default": "missing"
+          },
+          "buildFrom": {
+            "type": "string",
+            "description": "dev only: path of a Worldscribe checkout to build the image from"
+          },
+          "startupTimeoutSec": {
+            "type": "integer",
+            "default": 240,
+            "minimum": 10
+          },
+          "autoStart": {
+            "type": "boolean",
+            "default": true
+          },
+          "stopOnGatewayStop": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "llm": {
+        "type": "object",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "default": "https://api.deepseek.com"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "apiKeyEnv": {
+            "type": "string",
+            "description": "name of an environment variable holding the API key"
+          },
+          "model": {
+            "type": "string",
+            "default": "deepseek-v4-flash"
+          },
+          "concurrency": {
+            "type": "integer",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 32
+          },
+          "priceInPerMTok": {
+            "type": "number",
+            "default": 0.28,
+            "minimum": 0
+          },
+          "priceOutPerMTok": {
+            "type": "number",
+            "default": 0.42,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "embedder": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "bge-m3"
+              },
+              {
+                "type": "string",
+                "const": "remote"
+              },
+              {
+                "type": "string",
+                "const": "hashing"
+              }
+            ],
+            "default": "bge-m3"
+          },
+          "url": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "worlds": {
+        "type": "object",
+        "properties": {
+          "diary": {
+            "type": "string",
+            "default": "diary"
+          },
+          "defaultRecall": {
+            "type": "string",
+            "default": "diary"
+          },
+          "language": {
+            "type": "string",
+            "default": "zh"
+          }
+        },
+        "additionalProperties": false
+      },
+      "diary": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "time": {
+            "type": "string",
+            "default": "03:30",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA time zone; default = host"
+          },
+          "idleMinutes": {
+            "type": "integer",
+            "default": 30,
+            "minimum": 0
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "transcripts"
+                },
+                {
+                  "type": "string",
+                  "const": "dailyNotes"
+                }
+              ]
+            },
+            "default": [
+              "transcripts",
+              "dailyNotes"
+            ]
+          },
+          "agentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "main"
+            ]
+          },
+          "includeToolResults": {
+            "type": "boolean",
+            "default": false
+          },
+          "maxToolResultChars": {
+            "type": "integer",
+            "default": 400,
+            "minimum": 0
+          },
+          "maxChars": {
+            "type": "integer",
+            "default": 200000,
+            "minimum": 1000
+          },
+          "minChars": {
+            "type": "integer",
+            "default": 200,
+            "minimum": 0
+          },
+          "catchUpMaxDays": {
+            "type": "integer",
+            "default": 7,
+            "minimum": 0
+          },
+          "ordinalEpoch": {
+            "type": "string",
+            "default": "2026-01-01",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "skipEmptyDays": {
+            "type": "boolean",
+            "default": true
+          },
+          "pollIntervalSec": {
+            "type": "integer",
+            "default": 15,
+            "minimum": 1
+          },
+          "jobTimeoutMin": {
+            "type": "integer",
+            "default": 120,
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "ingest": {
+        "type": "object",
+        "properties": {
+          "maxChars": {
+            "type": "integer",
+            "default": 2000000,
+            "minimum": 1000
+          },
+          "confirmAboveChars": {
+            "type": "integer",
+            "default": 200000,
+            "minimum": 0
+          },
+          "allowLocalPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "~/Downloads",
+              "~/Documents"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "tools": {
+        "type": "object",
+        "properties": {
+          "enableRecall": {
+            "type": "boolean",
+            "default": true
+          },
+          "enableIngest": {
+            "type": "boolean",
+            "default": true
+          },
+          "enableWrite": {
+            "type": "boolean",
+            "default": true
+          },
+          "enableForget": {
+            "type": "boolean",
+            "default": false
+          },
+          "requestTimeoutMs": {
+            "type": "integer",
+            "default": 60000,
+            "minimum": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "recall": {
+        "type": "object",
+        "properties": {
+          "promptHint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "off"
+              },
+              {
+                "type": "string",
+                "const": "hint"
+              }
+            ],
+            "default": "off"
+          }
+        },
+        "additionalProperties": false
+      },
+      "logLevel": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "debug"
+          },
+          {
+            "type": "string",
+            "const": "info"
+          },
+          {
+            "type": "string",
+            "const": "warn"
+          }
+        ],
+        "default": "info"
+      }
+    },
+    "additionalProperties": false
+  }
+}
