@@ -35,7 +35,8 @@
     "test": "vitest run",
     "manifest": "node --experimental-strip-types scripts/gen-manifest.ts",
     "check": "pnpm run typecheck && pnpm run manifest && pnpm run build && pnpm test",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json"
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "e2e": "node scripts/e2e.mjs"
   },
   "peerDependencies": {
     "openclaw": ">=2026.9.3"
