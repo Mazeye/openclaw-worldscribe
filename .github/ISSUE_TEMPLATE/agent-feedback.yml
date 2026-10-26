@@ -1,0 +1,32 @@
+name: Agent feedback
+description: Evidence-backed bug or improvement, authored by a human or an agent.
+title: '[agent] '
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [Bug, Improvement, Compatibility]
+    validations:
+      required: true
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observation and expected behavior
+      description: Separate observed facts from hypotheses. Do not paste memory contents, logs, private paths, IDs or credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Synthetic reproduction
+      description: Use invented identities and text; include version, storage mode, error code and a minimal command or test.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and proposed acceptance check
+      description: State whether reproduction passed or failed. Diagnostics are content-free, but review configured repository names before sharing.
+    validations:
+      required: true

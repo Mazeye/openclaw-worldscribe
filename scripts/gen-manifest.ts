@@ -14,16 +14,18 @@ function stripRequired(node: unknown): unknown {
   return node;
 }
 const configSchema = stripRequired(JSON.parse(JSON.stringify(ConfigSchema)));
+const version = JSON.parse(fs.readFileSync("package.json", "utf8")).version as string;
+fs.writeFileSync("src/version.ts", `// Generated from package.json by npm run manifest.\nexport const VERSION = ${JSON.stringify(version)};\n`);
 const manifest = {
   id: "worldscribe",
   kind: "memory",
   name: "Worldscribe",
-  description: "Structured long-document memory (timeline, entities, states, storylines, mental states) over books, documents and daily conversations.",
-  version: JSON.parse(fs.readFileSync("package.json", "utf8")).version,
+  description: "Agent-native evidence memory: standalone storage, scoped recall and content-free diagnostics.",
+  version,
   skills: ["skills"],
-  cliCommands: [{ name: "worldscribe", description: "Worldscribe structured memory: backend, worlds, ingestion, diary", hasSubcommands: true }],
+  cliCommands: [{ name: "worldscribe", description: "Agent-native memory: diagnostics and local portability", hasSubcommands: true }],
   activation: { onStartup: true, onCommands: ["worldscribe"] },
-  contracts: { tools: [...TOOLS.map((t) => t.name), "worldscribe_search_sources"] },
+  contracts: { tools: [...TOOLS.map((t) => t.name), "worldscribe_search_sources", "worldscribe_diagnostics"] },
   toolMetadata: Object.fromEntries(
     TOOLS.filter((t) => t.optional || t.kind !== "recall").map((t) => [
       t.name,

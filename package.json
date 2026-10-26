@@ -1,7 +1,7 @@
 {
   "name": "openclaw-worldscribe",
-  "version": "0.1.0",
-  "description": "OpenClaw plugin: structured long-document memory (timeline, entities, states, storylines, mental states) powered by Worldscribe",
+  "version": "0.2.0",
+  "description": "Agent-native OpenClaw memory: standalone evidence storage, scoped recall and verifiable maintenance",
   "type": "module",
   "license": "MIT",
   "private": false,
@@ -28,15 +28,19 @@
     "docker",
     "openclaw.plugin.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "AGENTS.md",
+    "docs",
+    "scripts/e2e-local.mjs"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "manifest": "node --experimental-strip-types scripts/gen-manifest.ts",
-    "check": "pnpm run typecheck && pnpm run manifest && pnpm run build && pnpm test",
+    "check": "npm run typecheck && npm run manifest && npm run build && npm test",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "e2e": "node scripts/e2e.mjs"
+    "e2e:local": "node scripts/e2e-local.mjs",
+    "e2e:legacy": "node scripts/e2e.mjs"
   },
   "peerDependencies": {
     "openclaw": ">=2026.9.3"
@@ -55,6 +59,6 @@
     }
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.16.0"
   }
 }

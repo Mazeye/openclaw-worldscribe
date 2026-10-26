@@ -1,6 +1,6 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { registerCli } from "./src/cli.js";
-import { ConfigSchema, resolveConfig } from "./src/config.js";
+import { ConfigSchema, resolveConfig, storageMode } from "./src/config.js";
 import { registerHooks } from "./src/hooks.js";
 import { WorldscribeRuntime } from "./src/service.js";
 import { registerTools } from "./src/tools/register.js";
@@ -8,10 +8,10 @@ import { registerSourceArchive } from "./src/source-archive.js";
 export default definePluginEntry({
     id: "worldscribe",
     name: "Worldscribe",
-    description: "Structured long-document memory: timeline, entities, states, storylines and mental states over books, documents and your daily conversations.",
+    description: "Agent-native evidence memory with standalone local storage and scoped provenance.",
     configSchema: ConfigSchema,
     register(api) {
-        if (api.pluginConfig?.sourceArchive === true) {
+        if (storageMode((api.pluginConfig ?? {})) !== "legacy") {
             registerSourceArchive(api);
             return;
         }

@@ -1,34 +1,44 @@
 /** Local Worldscribe source memory. Privacy authority is supplied by the host,
- * never by tool parameters. No prompt-time network requests or native SQLite. */
-import fs from "node:fs";
+ * never by tool parameters. Storage defaults to bundled node:sqlite, opened lazily. */
 import crypto from "node:crypto";
-import path from "node:path";
-import { expandHome, stateDir } from "./paths.js";
-import { resolveConfig } from "./config.js";
+import { ArchiveRuntime } from "./archive-runtime.js";
+import { registerArchiveCli } from "./archive-cli.js";
 import { Type } from "typebox";
 export function sourceBinding(ctx, routes) {
     const key = ctx.sessionKey?.toLowerCase();
     // Older hosts omit memoryAudience: require a session incarnation and stay
     // within the exact source session. Never infer cross-conversation authority.
-    const audience = ctx.memoryAudience ?? (ctx.sessionId ? { kind: "conversation", sessionKey: ctx.sessionKey } : undefined);
-    if (!key || !audience)
+    const audience = ctx.memoryAudience ??
+        (ctx.sessionId
+            ? { kind: "conversation", sessionKey: ctx.sessionKey }
+            : undefined);
+    if (!key ||
+        !audience ||
+        !/^agent:[^:]+:[^:]+:[^:]+:direct:[^:]+(?::thread:[0-9]+(?:\.[0-9]+)?)?$/.test(key))
         return;
-    if (audience.kind === "conversation" && audience.sessionKey?.toLowerCase() !== key)
+    if (audience.kind === "conversation" &&
+        audience.sessionKey?.toLowerCase() !== key)
         return;
     if (audience.kind !== "conversation" && audience.kind !== "owner-private")
         return;
-    const matches = routes.filter(route => {
+    const matches = routes.filter((route) => {
         const base = route.sessionKey.toLowerCase();
         if (key === base)
             return true;
         const suffix = key.slice(base.length);
-        return route.allowThreads === true && key.startsWith(base) && /^:thread:[0-9]+(?:\.[0-9]+)?$/.test(suffix);
+        return (route.allowThreads === true &&
+            key.startsWith(base) &&
+            /^:thread:[0-9]+(?:\.[0-9]+)?$/.test(suffix));
     });
     // Ambiguous mappings cannot select a privacy partition by array order.
     if (matches.length !== 1)
         return;
     const route = matches[0];
-    return { world: route.world, session_key: key, owner_private: audience.kind === "owner-private" && route.ownerPrivate === true };
+    return {
+        world: route.world,
+        session_key: key,
+        owner_private: audience.kind === "owner-private" && route.ownerPrivate === true,
+    };
 }
 /** Take only the last user's message and last visible assistant response.
  * Tool-call messages and explicit analysis/commentary are not a final response.
@@ -51,7 +61,11 @@ export function captureTurn(raw) {
             return m.content.trim();
         if (!Array.isArray(m.content))
             return "";
-        return m.content.filter(b => b?.type === "text" && typeof b.text === "string").map(b => b.text).join("\n").trim();
+        return m.content
+            .filter((b) => b?.type === "text" && typeof b.text === "string")
+            .map((b) => b.text)
+            .join("\n")
+            .trim();
     };
     const user = visible(messages[start]);
     let answer = "";
@@ -59,7 +73,8 @@ export function captureTurn(raw) {
         const m = messages[i];
         if (m?.role !== "assistant" || (m.channel && m.channel !== "final"))
             continue;
-        if (Array.isArray(m.content) && m.content.some(b => ["toolCall", "tool_call", "tool_use"].includes(b?.type)))
+        if (Array.isArray(m.content) &&
+            m.content.some((b) => ["toolCall", "tool_call", "tool_use"].includes(b?.type)))
             continue;
         answer = visible(m);
         if (answer)
@@ -76,73 +91,112 @@ function guard(ctx) {
 }
 export function registerSourceArchive(api) {
     const raw = (api.pluginConfig ?? {});
-    const cfg = resolveConfig(raw);
-    const connectionFile = expandHome(raw.sourceArchiveConnectionFile ?? path.join(stateDir(), "worldscribe-source", "connection.json"));
-    // Read lazily: absent/rotated credentials must not break plugin registration.
-    // Operator-controlled routes stay outside source code, tools and prompts.
-    function connection() {
-        try {
-            const conn = JSON.parse(fs.readFileSync(connectionFile, "utf8"));
-            if (typeof conn.api_token !== "string" || !conn.api_token.trim() || !Array.isArray(conn.routes) ||
-                conn.routes.some(r => !r || typeof r.sessionKey !== "string" || !r.sessionKey || typeof r.world !== "string" || !r.world))
-                throw new Error();
-            return conn;
-        }
-        catch {
-            throw new Error("Worldscribe source connection unavailable or invalid; configure its private connection file and routes");
-        }
-    }
-    try {
-        connection();
-    }
-    catch {
-        api.logger.warn("worldscribe: source connection unavailable or invalid; source tools remain disabled until configured");
-    }
+    const rt = new ArchiveRuntime(raw);
+    const cfg = rt.cfg;
     function bindingFor(ctx) {
         try {
-            return sourceBinding(ctx, connection().routes);
+            return sourceBinding(ctx, rt.connection().routes);
         }
         catch {
             return undefined;
         }
     }
-    async function call(action, data) {
-        const conn = connection();
-        const r = await fetch(`http://127.0.0.1:${cfg.backend.port}/${action}`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${conn.api_token}` },
-            body: JSON.stringify(data), signal: AbortSignal.timeout(cfg.tools.requestTimeoutMs),
-        });
-        if (!r.ok)
-            throw new Error(`Worldscribe source service returned HTTP ${r.status}`);
-        return await r.json();
-    }
+    registerArchiveCli(api, rt);
+    api.registerService({
+        id: "worldscribe-local",
+        start: () => { },
+        stop: () => rt.close(),
+    });
+    api.registerTool({
+        name: "worldscribe_diagnostics",
+        label: "Worldscribe diagnostics",
+        description: "Read content-free memory health and configured issue/PR permissions. Never includes source text, credentials, paths or session IDs.",
+        parameters: Type.Object({}),
+        async execute() {
+            const result = await rt.doctor();
+            return {
+                content: [{ type: "text", text: JSON.stringify(result) }],
+                details: result,
+            };
+        },
+    }, { name: "worldscribe_diagnostics" });
     const definitions = [
-        { name: "worldscribe_search_sources", action: "search", description: "Search your authorized Worldscribe memories and migrated MemOS evidence. Keyword/trigram retrieval, not semantic or inferred facts. Quote source IDs; use worldscribe_get_sources for full evidence.",
-            parameters: Type.Object({ query: Type.String({ minLength: 1, maxLength: 500 }), k: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })) }) },
-        { name: "worldscribe_describe_world", action: "describe", description: "Describe the Worldscribe source-memory partition available to this conversation. Raw evidence is available; narrative/entity compilation has not run.", parameters: Type.Object({}) },
-        { name: "worldscribe_get_sources", action: "get", description: "Read full original memory sources by ID within this conversation's authorized Worldscribe partition.",
-            parameters: Type.Object({ source_ids: Type.Array(Type.Integer({ minimum: 1 }), { maxItems: 20 }) }) },
-        { name: "worldscribe_record_note", action: "record", description: "Persist an explicit durable note in this conversation's authorized Worldscribe memory. Supply a stable external_id for idempotency. Stores original text, not inferred structured events.",
-            parameters: Type.Object({ text: Type.String({ minLength: 1, maxLength: 100000 }), external_id: Type.String({ minLength: 1, maxLength: 250 }) }) },
+        {
+            name: "worldscribe_search_sources",
+            action: "search",
+            description: "Search your authorized Worldscribe memories evidence. Keyword retrieval, not semantic or inferred facts. Quote source IDs; use worldscribe_get_sources for full evidence.",
+            parameters: Type.Object({
+                query: Type.String({ minLength: 1, maxLength: 500 }),
+                k: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+            }),
+        },
+        {
+            name: "worldscribe_describe_world",
+            action: "describe",
+            description: "Describe the Worldscribe source-memory partition available to this conversation. Raw evidence is available; narrative/entity compilation has not run.",
+            parameters: Type.Object({}),
+        },
+        {
+            name: "worldscribe_get_sources",
+            action: "get",
+            description: "Read full original memory sources by ID within this conversation's authorized Worldscribe partition.",
+            parameters: Type.Object({
+                source_ids: Type.Array(Type.Integer({ minimum: 1 }), { maxItems: 20 }),
+            }),
+        },
+        {
+            name: "worldscribe_record_note",
+            action: "record",
+            description: "Persist an explicit durable note in this conversation's authorized Worldscribe memory. Supply a stable external_id for idempotency. Stores original text, not inferred structured events.",
+            parameters: Type.Object({
+                text: Type.String({ minLength: 1, maxLength: 100000 }),
+                external_id: Type.String({ minLength: 1, maxLength: 250 }),
+                ...(rt.mode === "local"
+                    ? {
+                        supersedes: Type.Optional(Type.Integer({
+                            minimum: 1,
+                            description: "Explicitly correct this source; original remains readable, but leaves default recall",
+                        })),
+                    }
+                    : {}),
+            }),
+        },
     ];
-    for (const def of definitions.filter(d => d.action === "record" ? cfg.tools.enableWrite : cfg.tools.enableRecall)) {
+    for (const def of definitions.filter((d) => d.action === "record" ? cfg.tools.enableWrite : cfg.tools.enableRecall)) {
         api.registerTool((toolCtx) => {
             const ctx = toolCtx;
             const binding = bindingFor(ctx);
             if (!binding)
                 return null;
-            return { name: def.name, label: def.name, description: def.description, parameters: def.parameters,
+            return {
+                name: def.name,
+                label: def.name,
+                description: def.description,
+                parameters: def.parameters,
                 async execute(_id, raw) {
                     guard(ctx);
                     const current = bindingFor(ctx);
                     if (!current || JSON.stringify(current) !== JSON.stringify(binding))
                         throw new Error("Worldscribe source authorization changed");
                     // Authority is written last: injected extra fields cannot select another world.
-                    const result = await call(def.action, { ...raw, ...binding });
+                    const result = await rt.call(def.action, {
+                        ...raw,
+                        ...binding,
+                        capture: false,
+                    }, binding);
                     guard(ctx);
-                    return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
-                } };
-        }, { name: def.name, ...(def.action === "record" ? { optional: true } : {}) });
+                    return {
+                        content: [
+                            { type: "text", text: JSON.stringify(result) },
+                        ],
+                        details: result,
+                    };
+                },
+            };
+        }, {
+            name: def.name,
+            ...(def.action === "record" ? { optional: true } : {}),
+        });
     }
     api.on("agent_end", async (event, rawCtx) => {
         const ctx = rawCtx;
@@ -154,10 +208,13 @@ export function registerSourceArchive(api) {
         const visible = captureTurn(event.messages);
         if (!visible)
             return;
-        const eid = crypto.createHash("sha256").update(binding.session_key + ":" + (event.runId ?? "") + ":" + visible).digest("hex");
+        const eid = crypto
+            .createHash("sha256")
+            .update(binding.session_key + ":" + (event.runId ?? "") + ":" + visible)
+            .digest("hex");
         try {
             guard(ctx);
-            await call("record", { ...binding, text: visible, external_id: `turn:${eid}`, capture: true });
+            await rt.call("record", { text: visible, external_id: `turn:${eid}`, capture: true }, binding);
         }
         catch {
             api.logger.warn("worldscribe: source capture failed; original OpenClaw transcript remains intact");

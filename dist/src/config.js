@@ -66,6 +66,14 @@ export const ToolsSchema = Type.Object({
     requestTimeoutMs: Type.Integer({ default: 60000, minimum: 1000 }),
 }, { additionalProperties: false });
 export const ConfigSchema = Type.Object({
+    storage: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("source-api"), Type.Literal("legacy")], { description: "Default local; sourceArchive:true without storage retains the old source-api adapter" })),
+    databaseFile: Type.Optional(Type.String({ description: "Standalone SQLite file; defaults to <state>/worldscribe/memory.sqlite" })),
+    routesFile: Type.Optional(Type.String({ description: "Private host-confirmed route JSON; no credentials required for local storage" })),
+    maintenance: Type.Optional(Type.Object({
+        repository: Type.Optional(Type.String({ pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", default: "Mazeye/openclaw-worldscribe" })),
+        allowIssues: Type.Optional(Type.Boolean({ default: false })),
+        allowPRs: Type.Optional(Type.Boolean({ default: false })),
+    }, { additionalProperties: false })),
     sourceArchiveConnectionFile: Type.Optional(Type.String({ description: "Private source API connection JSON; defaults to <OpenClaw state>/worldscribe-source/connection.json" })),
     sourceArchiveCapture: Type.Optional(Type.Boolean({ default: true, description: "Archive successful private turns; also requires tools.enableWrite" })),
     sourceArchive: Type.Optional(Type.Boolean({ default: false, description: "Local lossless source-memory mode; no LLM compilation" })),
@@ -122,4 +130,15 @@ export function resolveLlmKey(cfg, env = process.env) {
 export function imageRef(cfg) {
     const suffix = cfg.embedder.kind === "bge-m3" ? "-bge" : "";
     return `${cfg.backend.image}:${cfg.backend.imageTag}${suffix}`;
+}
+export function storageMode(raw) {
+    if (raw.storage)
+        return raw.storage;
+    if (raw.sourceArchive === true)
+        return "source-api";
+    // Preserve recognizable pre-0.2 structured deployments. Explicit storage
+    // always wins; an unconfigured fresh install gets standalone local storage.
+    if (raw.backend || raw.llm || raw.embedder || raw.worlds || raw.diary || raw.ingest)
+        return "legacy";
+    return "local";
 }
