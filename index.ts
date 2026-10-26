@@ -4,6 +4,7 @@ import { ConfigSchema, resolveConfig } from "./src/config.js";
 import { registerHooks } from "./src/hooks.js";
 import { WorldscribeRuntime } from "./src/service.js";
 import { registerTools } from "./src/tools/register.js";
+import { registerSourceArchive } from "./src/source-archive.js";
 
 export default definePluginEntry({
   id: "worldscribe",
@@ -11,6 +12,10 @@ export default definePluginEntry({
   description: "Structured long-document memory: timeline, entities, states, storylines and mental states over books, documents and your daily conversations.",
   configSchema: ConfigSchema as never,
   register(api: OpenClawPluginApi) {
+    if ((api.pluginConfig as { sourceArchive?: boolean })?.sourceArchive === true) {
+      registerSourceArchive(api);
+      return;
+    }
     let rt: WorldscribeRuntime;
     try {
       rt = new WorldscribeRuntime(resolveConfig(api.pluginConfig), api.logger);

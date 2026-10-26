@@ -1,5 +1,6 @@
 {
   "id": "worldscribe",
+  "kind": "memory",
   "name": "Worldscribe",
   "description": "Structured long-document memory (timeline, entities, states, storylines, mental states) over books, documents and daily conversations.",
   "version": "0.1.0",
@@ -33,7 +34,8 @@
       "worldscribe_ingest_status",
       "worldscribe_ingest_document",
       "worldscribe_record_note",
-      "worldscribe_forget"
+      "worldscribe_forget",
+      "worldscribe_search_sources"
     ]
   },
   "toolMetadata": {
@@ -78,6 +80,20 @@
   "configSchema": {
     "type": "object",
     "properties": {
+      "sourceArchiveConnectionFile": {
+        "type": "string",
+        "description": "Private source API connection JSON; defaults to <OpenClaw state>/worldscribe-source/connection.json"
+      },
+      "sourceArchiveCapture": {
+        "type": "boolean",
+        "default": true,
+        "description": "Archive successful private turns; also requires tools.enableWrite"
+      },
+      "sourceArchive": {
+        "type": "boolean",
+        "default": false,
+        "description": "Local lossless source-memory mode; no LLM compilation"
+      },
       "backend": {
         "type": "object",
         "properties": {
