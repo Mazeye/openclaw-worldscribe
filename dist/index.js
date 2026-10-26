@@ -4,12 +4,17 @@ import { ConfigSchema, resolveConfig } from "./src/config.js";
 import { registerHooks } from "./src/hooks.js";
 import { WorldscribeRuntime } from "./src/service.js";
 import { registerTools } from "./src/tools/register.js";
+import { registerSourceArchive } from "./src/source-archive.js";
 export default definePluginEntry({
     id: "worldscribe",
     name: "Worldscribe",
     description: "Structured long-document memory: timeline, entities, states, storylines and mental states over books, documents and your daily conversations.",
     configSchema: ConfigSchema,
     register(api) {
+        if (api.pluginConfig?.sourceArchive === true) {
+            registerSourceArchive(api);
+            return;
+        }
         let rt;
         try {
             rt = new WorldscribeRuntime(resolveConfig(api.pluginConfig), api.logger);

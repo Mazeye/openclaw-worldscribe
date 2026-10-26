@@ -66,6 +66,9 @@ export const ToolsSchema = Type.Object({
     requestTimeoutMs: Type.Integer({ default: 60000, minimum: 1000 }),
 }, { additionalProperties: false });
 export const ConfigSchema = Type.Object({
+    sourceArchiveConnectionFile: Type.Optional(Type.String({ description: "Private source API connection JSON; defaults to <OpenClaw state>/worldscribe-source/connection.json" })),
+    sourceArchiveCapture: Type.Optional(Type.Boolean({ default: true, description: "Archive successful private turns; also requires tools.enableWrite" })),
+    sourceArchive: Type.Optional(Type.Boolean({ default: false, description: "Local lossless source-memory mode; no LLM compilation" })),
     backend: Type.Optional(BackendSchema),
     llm: Type.Optional(LlmSchema),
     embedder: Type.Optional(EmbedderSchema),

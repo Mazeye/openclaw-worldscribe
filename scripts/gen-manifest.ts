@@ -16,13 +16,14 @@ function stripRequired(node: unknown): unknown {
 const configSchema = stripRequired(JSON.parse(JSON.stringify(ConfigSchema)));
 const manifest = {
   id: "worldscribe",
+  kind: "memory",
   name: "Worldscribe",
   description: "Structured long-document memory (timeline, entities, states, storylines, mental states) over books, documents and daily conversations.",
   version: JSON.parse(fs.readFileSync("package.json", "utf8")).version,
   skills: ["skills"],
   cliCommands: [{ name: "worldscribe", description: "Worldscribe structured memory: backend, worlds, ingestion, diary", hasSubcommands: true }],
   activation: { onStartup: true, onCommands: ["worldscribe"] },
-  contracts: { tools: TOOLS.map((t) => t.name) },
+  contracts: { tools: [...TOOLS.map((t) => t.name), "worldscribe_search_sources"] },
   toolMetadata: Object.fromEntries(
     TOOLS.filter((t) => t.optional || t.kind !== "recall").map((t) => [
       t.name,
