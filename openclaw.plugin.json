@@ -2,15 +2,15 @@
   "id": "worldscribe",
   "kind": "memory",
   "name": "Worldscribe",
-  "description": "Structured long-document memory (timeline, entities, states, storylines, mental states) over books, documents and daily conversations.",
-  "version": "0.1.0",
+  "description": "Agent-native evidence memory: standalone storage, scoped recall and content-free diagnostics.",
+  "version": "0.2.0",
   "skills": [
     "skills"
   ],
   "cliCommands": [
     {
       "name": "worldscribe",
-      "description": "Worldscribe structured memory: backend, worlds, ingestion, diary",
+      "description": "Agent-native memory: diagnostics and local portability",
       "hasSubcommands": true
     }
   ],
@@ -35,7 +35,8 @@
       "worldscribe_ingest_document",
       "worldscribe_record_note",
       "worldscribe_forget",
-      "worldscribe_search_sources"
+      "worldscribe_search_sources",
+      "worldscribe_diagnostics"
     ]
   },
   "toolMetadata": {
@@ -80,6 +81,50 @@
   "configSchema": {
     "type": "object",
     "properties": {
+      "storage": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "local"
+          },
+          {
+            "type": "string",
+            "const": "source-api"
+          },
+          {
+            "type": "string",
+            "const": "legacy"
+          }
+        ],
+        "description": "Default local; sourceArchive:true without storage retains the old source-api adapter"
+      },
+      "databaseFile": {
+        "type": "string",
+        "description": "Standalone SQLite file; defaults to <state>/worldscribe/memory.sqlite"
+      },
+      "routesFile": {
+        "type": "string",
+        "description": "Private host-confirmed route JSON; no credentials required for local storage"
+      },
+      "maintenance": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+            "default": "Mazeye/openclaw-worldscribe"
+          },
+          "allowIssues": {
+            "type": "boolean",
+            "default": false
+          },
+          "allowPRs": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
       "sourceArchiveConnectionFile": {
         "type": "string",
         "description": "Private source API connection JSON; defaults to <OpenClaw state>/worldscribe-source/connection.json"

@@ -1,3 +1,10 @@
 node_modules/
 .DS_Store
 *.log
+*.sqlite
+*.sqlite-*
+*.db
+connection.json
+routes.json
+*.jsonl
+!test/fixtures/**/*.jsonl
